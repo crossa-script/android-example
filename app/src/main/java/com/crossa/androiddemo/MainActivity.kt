@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 class MainActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val repository by lazy { NetworkComparisonRepository(applicationContext) }
+    private val repository by lazy { NetworkComparisonRepository() }
     private lateinit var content: LinearLayout
     private lateinit var runButton: Button
 

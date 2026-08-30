@@ -1,6 +1,6 @@
 package com.crossa.androiddemo
 
-import android.content.Context
+import com.crossa.generated.posts
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -23,9 +25,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.CancellationException
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class NetworkComparisonRepository(
-    private val context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val requestDelayMs: Long = 750L
 ) {
@@ -42,6 +45,13 @@ class NetworkComparisonRepository(
         "X-Demo-Client" to "ktor-client",
         "X-Request-Source" to "ktor"
     )
+
+    private val crossaHeaders = mapOf(
+        "Accept" to "application/json",
+        "X-Crossa-Scenario" to "cli"
+    )
+
+    private val crossaApi = posts()
 
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -81,7 +91,7 @@ class NetworkComparisonRepository(
     suspend fun runAll(): List<ScenarioResult> = listOf(
         runRetrofitScenario(),
         runKtorScenario(),
-        CrossaAssetReader.read(context)
+        runCrossaScenario()
     )
 
     fun close() {
@@ -118,6 +128,19 @@ class NetworkComparisonRepository(
             statusCode = response.status.value,
             posts = posts,
             responseHeaderCount = response.headers.names().size,
+            responsePreview = posts.preview()
+        )
+    }
+
+    private suspend fun runCrossaScenario(): ScenarioResult = runMeasuredScenario(
+        name = "Crossa AAR @AsyncAfter",
+        requestHeaders = crossaHeaders
+    ) {
+        val posts = fetchCrossaPosts()
+        ScenarioCall(
+            statusCode = 200,
+            posts = posts,
+            responseHeaderCount = 0,
             responsePreview = posts.preview()
         )
     }
@@ -189,6 +212,29 @@ class NetworkComparisonRepository(
             }
         }
     }
+
+    private suspend fun fetchCrossaPosts(): List<Post> = suspendCancellableCoroutine { continuation ->
+        crossaApi.fetchPosts { result ->
+            if (!continuation.isActive) {
+                return@fetchPosts
+            }
+            result.fold(
+                onSuccess = { values ->
+                    continuation.resume(values.map { it.toDomain() })
+                },
+                onFailure = { error ->
+                    continuation.resumeWithException(error)
+                }
+            )
+        }
+    }
+
+    private fun posts.Post.toDomain(): Post = Post(
+        userId = userId,
+        id = id,
+        title = title,
+        body = body
+    )
 
     private fun List<Post>.preview(): String = take(3).joinToString(separator = "\n") {
         "#${it.id} user=${it.userId} ${it.title}"

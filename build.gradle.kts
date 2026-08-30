@@ -1,87 +1,72 @@
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
-import java.util.Locale
-
 plugins {
     id("com.android.application") version "8.5.1" apply false
     kotlin("android") version "2.0.21" apply false
 }
 
-tasks.register("syncCrossaCliScenario") {
-    val sourceFile = layout.projectDirectory.file("crossa/posts.cra")
-    val outputFile = layout.projectDirectory.file("app/src/main/assets/crossa_metrics.json")
-    inputs.file(sourceFile)
+tasks.register("generateCrossaAar") {
+    val sourceDirectory = layout.projectDirectory.dir("crossa")
+    val generatedDirectory = layout.buildDirectory.dir("generated-crossa-aar")
+    val aarFile = layout.projectDirectory.file("app/libs/crossa-generated-debug.aar")
+    inputs.dir(sourceDirectory)
     outputs.upToDateWhen { false }
 
     doLast {
-        val cli = layout.projectDirectory.file("../Crossa/build/crossa").asFile
+        val cli = layout.projectDirectory.file("../Crossa/build-host/crossa").asFile
         require(cli.exists()) {
             "Crossa CLI was not found at ${cli.absolutePath}. Build Crossa first."
         }
 
-        val timings = mutableListOf<Long>()
-        var lastOutput = ""
-        var postCount = 0
-        var firstPost = mapOf<String, Any?>()
-
-        repeat(5) { index ->
-            val start = System.nanoTime()
-            val process = ProcessBuilder(
-                cli.absolutePath,
-                "run",
-                sourceFile.asFile.absolutePath
-            )
-                .directory(layout.projectDirectory.asFile)
-                .redirectErrorStream(false)
-                .start()
-            val stdout = process.inputStream.bufferedReader().readText()
-            val stderr = process.errorStream.bufferedReader().readText()
-            val exitValue = process.waitFor()
-            val elapsed = (System.nanoTime() - start) / 1_000_000
-            timings += elapsed
-
-            if (exitValue != 0) {
-                throw GradleException(stderr.ifBlank { "Crossa CLI request failed." })
-            }
-
-            lastOutput = stdout.trim()
-            val parsed = JsonSlurper().parseText(lastOutput) as List<*>
-            postCount = parsed.size
-            firstPost = (parsed.firstOrNull() as? Map<*, *>)
-                ?.mapKeys { it.key.toString() }
-                ?: emptyMap()
-
-            if (index < 4) {
-                Thread.sleep(750)
-            }
+        val outputDirectory = generatedDirectory.get().asFile
+        outputDirectory.deleteRecursively()
+        val generateProcess = ProcessBuilder(
+            cli.absolutePath,
+            "generate-build",
+            "android",
+            sourceDirectory.asFile.absolutePath,
+            "--output",
+            outputDirectory.absolutePath
+        )
+            .directory(layout.projectDirectory.asFile)
+            .redirectErrorStream(false)
+            .start()
+        val generateError = generateProcess.errorStream.bufferedReader().readText()
+        if (generateProcess.waitFor() != 0) {
+            throw GradleException(generateError.ifBlank { "Crossa Android generation failed." })
         }
 
-        val average = timings.average()
-        val payload = mapOf(
-            "scenario" to "Crossa CLI",
-            "requestUrl" to "https://jsonplaceholder.typicode.com/posts",
-            "requestCount" to 5,
-            "successCount" to 5,
-            "totalMs" to timings.sum(),
-            "averageMs" to String.format(Locale.US, "%.2f", average).toDouble(),
-            "minMs" to timings.minOrNull(),
-            "maxMs" to timings.maxOrNull(),
-            "postCount" to postCount,
-            "firstPost" to firstPost,
-            "timingsMs" to timings,
-            "requestHeaders" to mapOf(
-                "Accept" to "application/json",
-                "X-Crossa-Demo" to "android-example",
-                "X-Crossa-Scenario" to "cli"
-            ),
-            "responsePreview" to lastOutput.take(700)
-        )
+        outputDirectory.resolve("local.properties")
+            .writeText("sdk.dir=/Users/yazantarifi/Crossa/Crossa/build/android-sdk\n")
 
-        outputFile.asFile.parentFile.mkdirs()
-        outputFile.asFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(payload)))
+        val gradle = layout.projectDirectory.file("gradlew").asFile
+        val buildProcess = ProcessBuilder(
+            gradle.absolutePath,
+            "-p",
+            outputDirectory.absolutePath,
+            ":library:assembleDebug"
+        )
+            .directory(layout.projectDirectory.asFile)
+            .redirectErrorStream(true)
+            .start()
+        val buildOutput = buildProcess.inputStream.bufferedReader().readText()
+        if (buildProcess.waitFor() != 0) {
+            throw GradleException(buildOutput.ifBlank { "Crossa AAR build failed." })
+        }
+
+        val generatedAar = outputDirectory.resolve("library/build/outputs/aar/library-debug.aar")
+        require(generatedAar.exists()) {
+            "Generated Crossa AAR was not found at ${generatedAar.absolutePath}."
+        }
+        aarFile.asFile.parentFile.mkdirs()
+        generatedAar.copyTo(aarFile.asFile, overwrite = true)
     }
 }
 
 tasks.register("verifyDemo") {
-    dependsOn("syncCrossaCliScenario", ":app:assembleDebug")
+    dependsOn("generateCrossaAar", ":app:assembleDebug")
+}
+
+gradle.projectsEvaluated {
+    project(":app").tasks.named("preBuild").configure {
+        dependsOn(rootProject.tasks.named("generateCrossaAar"))
+    }
 }
