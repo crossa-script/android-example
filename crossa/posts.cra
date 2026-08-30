@@ -1,0 +1,20 @@
+model Post(
+    userId: Int,
+    id: Int,
+    title: String,
+    body: String
+)
+
+@AsyncAfter
+fun fetchPosts(): List<Post> {
+    re CrossaRequest {
+        url: "https://jsonplaceholder.typicode.com/posts",
+        method: GET,
+        headers: {
+            "X-Crossa-Scenario": "cli"
+        },
+        timeout: 10000
+    }
+}
+
+print(fetchPosts())

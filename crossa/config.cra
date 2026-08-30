@@ -1,0 +1,22 @@
+config {
+    packageName: "com.crossa.generated",
+    baseUrl: "https://jsonplaceholder.typicode.com",
+    timeoutRequest: 10000,
+    commonHeaders: {
+        "Accept": "application/json",
+        "X-Crossa-Demo": "android-example"
+    },
+    interceptor: {
+        enabled: true,
+        logRequests: true,
+        logResponses: true,
+        logHeaders: true,
+        logBody: false,
+        excludedHeaders: ["Authorization", "Cookie", "Set-Cookie"]
+    },
+    workerThreads: 2,
+    maxQueuedTasks: 16,
+    maxResponseBytes: 1048576,
+    maxJsonDepth: 32,
+    followRedirects: true
+}
