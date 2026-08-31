@@ -1,6 +1,10 @@
 package com.crossa.androiddemo
 
-import com.crossa.generated.posts
+import com.crossa.generated.api.posts
+import com.crossa.generated.model.Post as CrossaPost
+import com.crossa.generated.runtime.CrossaConfigurationOverrides
+import com.crossa.generated.runtime.CrossaRuntime
+import com.crossa.generated.runtime.CrossaState
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -53,6 +57,12 @@ class NetworkComparisonRepository(
 
     private val crossaApi = posts()
 
+    init {
+        CrossaRuntime.configure(CrossaConfigurationOverrides(
+
+        ))
+    }
+
     private val okHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
@@ -96,6 +106,7 @@ class NetworkComparisonRepository(
 
     fun close() {
         ktorClient.close()
+        CrossaRuntime.close()
     }
 
     private suspend fun runRetrofitScenario(): ScenarioResult = runMeasuredScenario(
@@ -214,22 +225,30 @@ class NetworkComparisonRepository(
     }
 
     private suspend fun fetchCrossaPosts(): List<Post> = suspendCancellableCoroutine { continuation ->
-        crossaApi.fetchPosts { result ->
+        crossaApi.fetchPosts { state ->
             if (!continuation.isActive) {
                 return@fetchPosts
             }
-            result.fold(
-                onSuccess = { values ->
-                    continuation.resume(values.map { it.toDomain() })
-                },
-                onFailure = { error ->
-                    continuation.resumeWithException(error)
+            when (state) {
+                is CrossaState.Success -> {
+                    val values = state.data
+                    try {
+                        continuation.resume(values.map { it.toDomain() })
+                    } finally {
+                        (values as? AutoCloseable)?.close()
+                    }
                 }
-            )
+                is CrossaState.Failed -> {
+                    continuation.resumeWithException(IllegalStateException(state.error.message))
+                }
+                CrossaState.Cancelled -> {
+                    continuation.cancel(CancellationException("Crossa request cancelled"))
+                }
+            }
         }
     }
 
-    private fun posts.Post.toDomain(): Post = Post(
+    private fun CrossaPost.toDomain(): Post = Post(
         userId = userId,
         id = id,
         title = title,
