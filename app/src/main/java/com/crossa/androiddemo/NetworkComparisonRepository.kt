@@ -1,6 +1,6 @@
 package com.crossa.androiddemo
 
-import com.crossa.generated.api.posts
+import com.crossa.generated.api.Posts
 import com.crossa.generated.model.Post as CrossaPost
 import com.crossa.generated.runtime.CrossaConfigurationOverrides
 import com.crossa.generated.runtime.CrossaRuntime
@@ -55,7 +55,7 @@ class NetworkComparisonRepository(
         "X-Crossa-Scenario" to "cli"
     )
 
-    private val crossaApi = posts()
+    private val crossaApi = Posts()
 
     init {
         CrossaRuntime.configure(CrossaConfigurationOverrides(
