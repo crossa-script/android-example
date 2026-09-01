@@ -11,7 +11,10 @@ fun fetchPosts(): List<Post> {
         url: "https://jsonplaceholder.typicode.com/posts",
         method: GET,
         headers: {
-            "X-Crossa-Scenario": "cli"
+            "X-Crossa-Scenario": "cli",
+            "Cache-Control": "no-cache, no-store, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0"
         },
         timeout: 10000
     }

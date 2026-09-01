@@ -4,7 +4,10 @@ config {
     timeoutRequest: 10000,
     commonHeaders: {
         "Accept": "application/json",
-        "X-Crossa-Demo": "android-example"
+        "X-Crossa-Demo": "android-example",
+        "Cache-Control": "no-cache, no-store, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0"
     },
     interceptor: {
         enabled: true,

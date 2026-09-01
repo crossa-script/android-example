@@ -8,7 +8,6 @@ import com.crossa.generated.runtime.CrossaState
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
@@ -20,6 +19,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.CacheControl
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -34,68 +34,38 @@ import kotlin.coroutines.resumeWithException
 
 class NetworkComparisonRepository(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val requestDelayMs: Long = 750L
+    val requestDelayMs: Long = 2_000L
 ) {
     private val apiUrl = "https://jsonplaceholder.typicode.com/posts"
+    val requestIterations = 5
 
-    private val retrofitHeaders = mapOf(
+    private val noCacheHeaders = mapOf(
+        "Cache-Control" to "no-cache, no-store, max-age=0",
+        "Pragma" to "no-cache",
+        "Expires" to "0"
+    )
+
+    private val retrofitHeaders = noCacheHeaders + mapOf(
         "Accept" to "application/json",
         "X-Demo-Client" to "retrofit-okhttp",
         "X-Request-Source" to "retrofit-okhttp"
     )
 
-    private val ktorHeaders = mapOf(
+    private val ktorHeaders = noCacheHeaders + mapOf(
         "Accept" to "application/json",
         "X-Demo-Client" to "ktor-client",
         "X-Request-Source" to "ktor"
     )
 
-    private val crossaHeaders = mapOf(
+    private val crossaHeaders = noCacheHeaders + mapOf(
         "Accept" to "application/json",
         "X-Crossa-Scenario" to "cli"
     )
-
-    private val crossaApi = Posts()
 
     init {
         CrossaRuntime.configure(CrossaConfigurationOverrides(
 
         ))
-    }
-
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .addInterceptor(Interceptor { chain ->
-            val request = chain.request()
-                .newBuilder()
-                .header("Accept", "application/json")
-                .header("X-Demo-Client", "retrofit-okhttp")
-                .build()
-            chain.proceed(request)
-        })
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
-        })
-        .build()
-
-    private val retrofitService = Retrofit.Builder()
-        .baseUrl("https://jsonplaceholder.typicode.com/")
-        .client(okHttpClient)
-        .addConverterFactory(GsonConverterFactory.create())
-        .build()
-        .create(JsonPlaceholderService::class.java)
-
-    private val ktorClient = HttpClient(OkHttp) {
-        install(HttpTimeout) {
-            requestTimeoutMillis = 10_000
-            connectTimeoutMillis = 10_000
-            socketTimeoutMillis = 10_000
-        }
-        defaultRequest {
-            header("Accept", "application/json")
-            header("X-Demo-Client", "ktor-client")
-        }
     }
 
     suspend fun runAll(): List<ScenarioResult> = listOf(
@@ -105,7 +75,6 @@ class NetworkComparisonRepository(
     )
 
     fun close() {
-        ktorClient.close()
         CrossaRuntime.close()
     }
 
@@ -113,34 +82,51 @@ class NetworkComparisonRepository(
         name = "Retrofit + OkHttp",
         requestHeaders = retrofitHeaders
     ) {
-        val response = retrofitService.fetchPosts()
-        val posts = response.body().orEmpty().map(ApiPost::toDomain)
-        if (!response.isSuccessful) {
-            error("HTTP ${response.code()}")
+        val client = createOkHttpClient()
+        try {
+            val service = Retrofit.Builder()
+                .baseUrl("https://jsonplaceholder.typicode.com/")
+                .client(client)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+                .create(JsonPlaceholderService::class.java)
+            val response = service.fetchPosts(retrofitHeaders)
+            val posts = response.body().orEmpty().map(ApiPost::toDomain)
+            if (!response.isSuccessful) {
+                error("HTTP ${response.code()}")
+            }
+            ScenarioCall(
+                statusCode = response.code(),
+                posts = posts,
+                responseHeaderCount = response.headers().size,
+                responsePreview = posts.preview()
+            )
+        } finally {
+            client.connectionPool.evictAll()
+            client.dispatcher.executorService.shutdown()
         }
-        ScenarioCall(
-            statusCode = response.code(),
-            posts = posts,
-            responseHeaderCount = response.headers().size,
-            responsePreview = posts.preview()
-        )
     }
 
     private suspend fun runKtorScenario(): ScenarioResult = runMeasuredScenario(
         name = "Ktor Client",
         requestHeaders = ktorHeaders
     ) {
-        val response = ktorClient.get(apiUrl) {
-            header("X-Request-Source", "ktor")
+        val client = createKtorClient()
+        try {
+            val response = client.get(apiUrl) {
+                ktorHeaders.forEach { (key, value) -> header(key, value) }
+            }
+            val raw = response.bodyAsText()
+            val posts = raw.toPosts()
+            ScenarioCall(
+                statusCode = response.status.value,
+                posts = posts,
+                responseHeaderCount = response.headers.names().size,
+                responsePreview = posts.preview()
+            )
+        } finally {
+            client.close()
         }
-        val raw = response.bodyAsText()
-        val posts = raw.toPosts()
-        ScenarioCall(
-            statusCode = response.status.value,
-            posts = posts,
-            responseHeaderCount = response.headers.names().size,
-            responsePreview = posts.preview()
-        )
     }
 
     private suspend fun runCrossaScenario(): ScenarioResult = runMeasuredScenario(
@@ -166,7 +152,7 @@ class NetworkComparisonRepository(
         var lastCall: ScenarioCall? = null
         var errorMessage: String? = null
 
-        repeat(5) { index ->
+        repeat(requestIterations) { index ->
             currentCoroutineContext().ensureActive()
             val start = System.nanoTime()
             try {
@@ -180,7 +166,7 @@ class NetworkComparisonRepository(
             } finally {
                 timings += (System.nanoTime() - start) / 1_000_000
             }
-            if (index < 4) {
+            if (index < requestIterations - 1) {
                 delay(requestDelayMs)
             }
         }
@@ -189,7 +175,7 @@ class NetworkComparisonRepository(
         ScenarioResult(
             name = name,
             requestUrl = apiUrl,
-            requestCount = 5,
+            requestCount = requestIterations,
             successCount = successCount,
             totalMs = timings.sum(),
             averageMs = timings.averageOrZero(),
@@ -225,7 +211,7 @@ class NetworkComparisonRepository(
     }
 
     private suspend fun fetchCrossaPosts(): List<Post> = suspendCancellableCoroutine { continuation ->
-        crossaApi.fetchPosts { state ->
+        Posts().fetchPosts { state ->
             if (!continuation.isActive) {
                 return@fetchPosts
             }
@@ -245,6 +231,33 @@ class NetworkComparisonRepository(
                     continuation.cancel(CancellationException("Crossa request cancelled"))
                 }
             }
+        }
+    }
+
+    private fun createOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .addInterceptor(Interceptor { chain ->
+            val request = chain.request()
+                .newBuilder()
+                .cacheControl(CacheControl.FORCE_NETWORK)
+                .headers(chain.request().headers)
+                .apply {
+                    retrofitHeaders.forEach { (key, value) -> header(key, value) }
+                }
+                .build()
+            chain.proceed(request)
+        })
+        .addInterceptor(HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BASIC
+        })
+        .build()
+
+    private fun createKtorClient(): HttpClient = HttpClient(OkHttp) {
+        install(HttpTimeout) {
+            requestTimeoutMillis = 10_000
+            connectTimeoutMillis = 10_000
+            socketTimeoutMillis = 10_000
         }
     }
 
