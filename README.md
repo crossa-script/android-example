@@ -23,3 +23,5 @@ After all three results are available, the Activity prints the average milliseco
 ```
 
 The script calls the Crossa CLI, builds `library-debug.aar`, and copies it to `app/libs/crossa-generated-debug.aar`. `verifyDemo` runs the same generation through the `generateCrossaAar` Gradle task before building the APK.
+
+Android Studio Run does not generate the AAR. Run `./scripts/generate-crossa-aar.sh` after changing `.cra` sources, then run the app from Android Studio.

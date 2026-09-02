@@ -17,11 +17,6 @@ tasks.register<Exec>("generateCrossaAar") {
 }
 
 tasks.register("verifyDemo") {
-    dependsOn("generateCrossaAar", ":app:assembleDebug")
-}
-
-gradle.projectsEvaluated {
-    project(":app").tasks.named("preBuild").configure {
-        dependsOn(rootProject.tasks.named("generateCrossaAar"))
-    }
+    dependsOn("generateCrossaAar")
+    finalizedBy(":app:assembleDebug")
 }

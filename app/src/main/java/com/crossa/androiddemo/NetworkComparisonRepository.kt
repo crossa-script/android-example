@@ -62,10 +62,10 @@ class NetworkComparisonRepository(
         "X-Crossa-Scenario" to "cli"
     )
 
-    init {
-        CrossaRuntime.configure(CrossaConfigurationOverrides(
+    private var ownsCrossaRuntime = false
 
-        ))
+    init {
+        acquireCrossaRuntime()
     }
 
     suspend fun runAll(): List<ScenarioResult> = listOf(
@@ -75,7 +75,24 @@ class NetworkComparisonRepository(
     )
 
     fun close() {
-        CrossaRuntime.close()
+        synchronized(crossaRuntimeLock) {
+            if (!ownsCrossaRuntime) return
+            ownsCrossaRuntime = false
+            crossaRuntimeOwners -= 1
+            if (crossaRuntimeOwners == 0) {
+                CrossaRuntime.close()
+            }
+        }
+    }
+
+    private fun acquireCrossaRuntime() {
+        synchronized(crossaRuntimeLock) {
+            if (crossaRuntimeOwners == 0) {
+                CrossaRuntime.configure(CrossaConfigurationOverrides())
+            }
+            crossaRuntimeOwners += 1
+            ownsCrossaRuntime = true
+        }
     }
 
     private suspend fun runRetrofitScenario(): ScenarioResult = runMeasuredScenario(
@@ -275,5 +292,10 @@ class NetworkComparisonRepository(
     private fun List<Long>.averageOrZero(): Double {
         if (isEmpty()) return 0.0
         return String.format(Locale.US, "%.2f", average()).toDouble()
+    }
+
+    private companion object {
+        val crossaRuntimeLock = Any()
+        var crossaRuntimeOwners = 0
     }
 }
