@@ -1,9 +1,4 @@
-model Post(
-    userId: Int,
-    id: Int,
-    title: String,
-    body: String
-)
+import #Post.cra#
 
 @AsyncAfter
 fun fetchPosts(): List<Post> {
@@ -19,5 +14,3 @@ fun fetchPosts(): List<Post> {
         timeout: 10000
     }
 }
-
-print(fetchPosts())

@@ -1,6 +1,6 @@
 package com.crossa.androiddemo
 
-import com.crossa.generated.api.Posts
+import com.crossa.generated.api.PostsRepository
 import com.crossa.generated.model.Post as CrossaPost
 import com.crossa.generated.runtime.CrossaConfigurationOverrides
 import com.crossa.generated.runtime.CrossaRuntime
@@ -211,9 +211,9 @@ class NetworkComparisonRepository(
     }
 
     private suspend fun fetchCrossaPosts(): List<Post> = suspendCancellableCoroutine { continuation ->
-        Posts().fetchPosts { state ->
+        PostsRepository().getPosts { state ->
             if (!continuation.isActive) {
-                return@fetchPosts
+                return@getPosts
             }
             when (state) {
                 is CrossaState.Success -> {
