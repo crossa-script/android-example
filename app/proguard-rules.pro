@@ -1,0 +1,3 @@
+-keep,allowoptimization class com.crossa.androiddemo.** { *; }
+-dontwarn org.slf4j.**
+-dontwarn java.lang.invoke.StringConcatFactory

@@ -28,12 +28,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,10 +42,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.crossa.androiddemo.benchmark.BenchmarkConfiguration
+import com.crossa.androiddemo.benchmark.BenchmarkRunResult
+import com.crossa.androiddemo.benchmark.BenchmarkRunner
+import com.crossa.androiddemo.benchmark.BenchmarkSummary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -55,7 +58,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            CrossaDemoTheme {
+            MaterialTheme {
                 BenchmarkScreen()
             }
         }
@@ -64,15 +67,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun BenchmarkScreen() {
-    val repository = remember { NetworkComparisonRepository() }
+    val configuration = remember { BenchmarkConfiguration() }
     val scope = rememberCoroutineScope()
-    var results by remember { mutableStateOf<List<ScenarioResult>>(emptyList()) }
+    var result by remember { mutableStateOf<BenchmarkRunResult?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-
-    DisposableEffect(repository) {
-        onDispose { repository.close() }
-    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -88,34 +87,32 @@ private fun BenchmarkScreen() {
             item {
                 Header(
                     loading = loading,
-                    iterations = repository.requestIterations,
-                    delayMs = repository.requestDelayMs,
+                    configuration = configuration,
                     onRun = {
                         scope.launch {
                             loading = true
                             error = null
-                            results = emptyList()
-                            runCatching { repository.runAll() }
-                                .onSuccess { results = it }
+                            result = null
+                            runCatching {
+                                withContext(Dispatchers.Default) {
+                                    BenchmarkRunner(configuration).run()
+                                }
+                            }.onSuccess { result = it }
                                 .onFailure { error = it.message ?: it::class.java.simpleName }
                             loading = false
                         }
                     }
                 )
             }
-
-            error?.let {
-                item { ErrorPanel(it) }
-            }
-
+            error?.let { item { ErrorPanel(it) } }
             if (loading) {
-                item { LoadingPanel(repository.requestIterations, repository.requestDelayMs) }
-            } else if (results.isEmpty()) {
-                item { EmptyPanel() }
+                item { LoadingPanel(configuration) }
             } else {
-                item { SummaryPanel(results) }
-                items(results, key = { it.name }) { result ->
-                    ResultPanel(result)
+                result?.let { run ->
+                    item { MetadataPanel(run) }
+                    items(run.summaries, key = { it.implementation.name }) { summary ->
+                        SummaryCard(summary, run)
+                    }
                 }
             }
         }
@@ -125,8 +122,7 @@ private fun BenchmarkScreen() {
 @Composable
 private fun Header(
     loading: Boolean,
-    iterations: Int,
-    delayMs: Long,
+    configuration: BenchmarkConfiguration,
     onRun: () -> Unit
 ) {
     Column(
@@ -136,126 +132,73 @@ private fun Header(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Crossa Network Benchmark",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "GET https://jsonplaceholder.typicode.com/posts",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text("Crossa Network Benchmark", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(configuration.endpoint, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Button(
-                enabled = !loading,
-                onClick = onRun
-            ) {
+            Button(enabled = !loading, onClick = onRun) {
                 Text(if (loading) "Running" else "Run")
             }
         }
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            MetricChip("Clients", "3")
-            MetricChip("Requests each", iterations.toString())
-            MetricChip("Delay", "${delayMs}ms")
-            MetricChip("Cache", "disabled")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            MetricChip("Mode", configuration.mode.name)
+            MetricChip("Warmups", configuration.warmupIterations.toString())
+            MetricChip("Measured", configuration.measuredIterations.toString())
+            MetricChip("Artifact", BuildConfig.CROSSA_ARTIFACT)
+            MetricChip("Build", BuildConfig.BENCHMARK_BUILD)
+        }
+        Text(
+            "Observations only. Remote JSONPlaceholder latency is not SDK overhead. No winner is declared from one average.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+private fun MetadataPanel(run: BenchmarkRunResult) {
+    val metadata = run.metadata
+    Card(shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Reproducibility", fontWeight = FontWeight.Bold)
+            Text("Device ${metadata.deviceModel}", fontSize = 12.sp)
+            Text("Android ${metadata.androidVersion}  ABI ${metadata.abi}", fontSize = 12.sp)
+            Text("App ${metadata.appVersion}  ${metadata.buildType}", fontSize = 12.sp)
+            Text("Crossa ${metadata.crossaArtifact} ${metadata.crossaArtifactVersion}", fontSize = 12.sp)
+            Text("${metadata.mode}  ${metadata.endpointKind}  ${metadata.endpoint}", fontSize = 12.sp)
+            Text("Warmups ${metadata.warmupIterations}  Measured ${metadata.measuredIterations}", fontSize = 12.sp)
         }
     }
 }
 
 @Composable
-private fun SummaryPanel(results: List<ScenarioResult>) {
-    val completed = results.filter { it.successCount == it.requestCount }
-    val winner = completed.minByOrNull { it.averageMs }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = winner?.let { "Winner: ${it.name}" } ?: "Winner unavailable",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-        Text(
-            text = winner?.let { "Average ${it.averageMs.formatMs()}ms across ${it.requestCount} uncached requests" }
-                ?: "One or more clients did not finish all requests.",
-            color = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-        HorizontalDivider(color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f))
-        results.sortedBy { it.averageMs }.forEachIndexed { index, result ->
-            Text(
-                text = "${index + 1}. ${result.name}: avg ${result.averageMs.formatMs()}ms, success ${result.successCount}/${result.requestCount}",
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-    }
-}
-
-@Composable
-private fun ResultPanel(result: ScenarioResult) {
+private fun SummaryCard(summary: BenchmarkSummary, run: BenchmarkRunResult) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = result.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                StatusBadge(result.successCount, result.requestCount)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(summary.implementation.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                MetricChip("p50", summary.medianNanos.toMs())
+                MetricChip("p95", summary.p95Nanos.toMs())
+                MetricChip("mean", summary.meanNanos.toMs())
+                MetricChip("min", summary.minNanos.toMs())
+                MetricChip("max", summary.maxNanos.toMs())
+                MetricChip("success", "${summary.successCount}/${summary.sampleCount}")
             }
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                MetricChip("Avg", "${result.averageMs.formatMs()}ms")
-                MetricChip("Min", "${result.minMs}ms")
-                MetricChip("Max", "${result.maxMs}ms")
-                MetricChip("Posts", result.postCount.toString())
-            }
-            Text(
-                text = result.responseInfo,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            CodeBlock("Timings", result.timingsMs.joinToString(prefix = "[", postfix = "]") { "${it}ms" })
-            CodeBlock("Headers", result.requestHeaders.entries.joinToString("\n") { "${it.key}: ${it.value}" })
-            result.firstPost?.let {
-                CodeBlock(
-                    title = "Mapped first post",
-                    value = "id=${it.id}\nuserId=${it.userId}\ntitle=${it.title}\nbody=${it.body.take(180)}"
-                )
-            }
-            if (result.responsePreview.isNotBlank()) {
-                CodeBlock("Mapped response preview", result.responsePreview)
-            }
-            result.error?.let {
-                CodeBlock("Last error", it)
+            if (summary.implementation.name == "Crossa") {
+                run.crossaSplit?.let { split ->
+                    CodeBlock(
+                        "Crossa split",
+                        "native-ready p50 ${split.nativeReady.medianNanos.toMs()}\n" +
+                            "materialization p50 ${split.materialization?.medianNanos?.toMs() ?: "n/a"}\n" +
+                            "application-ready p50 ${split.applicationReady.medianNanos.toMs()}"
+                    )
+                }
             }
         }
     }
@@ -263,116 +206,61 @@ private fun ResultPanel(result: ScenarioResult) {
 
 @Composable
 private fun MetricChip(label: String, value: String) {
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = value,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+    Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+        Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Spacer(Modifier.width(6.dp))
+            Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
         }
-    }
-}
-
-@Composable
-private fun StatusBadge(successCount: Int, requestCount: Int) {
-    val complete = successCount == requestCount
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = if (complete) Color(0xFFDFF4E8) else Color(0xFFFFE2DE)
-    ) {
-        Text(
-            text = "$successCount/$requestCount",
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (complete) Color(0xFF145235) else Color(0xFF8A1C12)
-        )
     }
 }
 
 @Composable
 private fun CodeBlock(title: String, value: String) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(
-            text = title,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
+            value,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
                 .padding(10.dp),
             fontSize = 12.sp,
-            lineHeight = 17.sp,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontFamily = FontFamily.Monospace
         )
     }
 }
 
 @Composable
-private fun LoadingPanel(iterations: Int, delayMs: Long) {
+private fun LoadingPanel(configuration: BenchmarkConfiguration) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("Running benchmark", fontWeight = FontWeight.Bold)
-        Text(
-            text = "Each client sends $iterations uncached requests with ${delayMs}ms delay between calls.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun EmptyPanel() {
-    Column(
-        modifier = Modifier
+        Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
             .padding(16.dp)
     ) {
-        Text("Run the benchmark to compare Retrofit, Ktor, and Crossa AAR.")
+        Text("Running interleaved ${configuration.mode.name.lowercase()} rounds", fontWeight = FontWeight.Bold)
+        Text(
+            "Warmups ${configuration.warmupIterations} are excluded. Measured rounds ${configuration.measuredIterations}.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun ErrorPanel(message: String) {
     Column(
-        modifier = Modifier
+        Modifier
             .fillMaxWidth()
             .background(Color(0xFFFFE2DE), RoundedCornerShape(8.dp))
             .padding(16.dp)
     ) {
         Text("Benchmark failed", fontWeight = FontWeight.Bold, color = Color(0xFF8A1C12))
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(Modifier.height(6.dp))
         Text(message, color = Color(0xFF8A1C12))
     }
 }
 
-@Composable
-private fun CrossaDemoTheme(content: @Composable () -> Unit) {
-    MaterialTheme(content = content)
-}
+private fun Long.toMs(): String = String.format(Locale.US, "%.2f ms", this / 1_000_000.0)
 
-private fun Double.formatMs(): String = String.format(Locale.US, "%.2f", this)
+private fun Double.toMs(): String = String.format(Locale.US, "%.2f ms", this / 1_000_000.0)
