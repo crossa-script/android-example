@@ -28,14 +28,16 @@ Android Studio Run does not generate the AAR. Run `./scripts/generate-crossa-aar
 
 ## Latest run (2026-09-06)
 
-Built from the rebuilt Crossa 0.1.0 host compiler and a freshly generated debug AAR, then installed on a Pixel 10 Pro Android emulator (`arm64-v8a`, API 37). Each client sent 5 uncached `GET https://jsonplaceholder.typicode.com/posts` requests with a 2000ms delay.
+Rebuilt after fixing `Unable to configure native HTTP transport option`. Android’s generated libcurl is built without nghttp2, so `CURLOPT_HTTP_VERSION_2TLS` is now attempted and then falls back to HTTP/1.1.
+
+Pixel 10 Pro emulator (`arm64-v8a`, API 37). Each client sent 5 uncached `GET https://jsonplaceholder.typicode.com/posts` requests with a 2000ms delay. Crossa completed all 5 requests with HTTP 200.
 
 | Rank | Client | Average | Success | Notes |
 |---|---|---|---|---|
-| 1 | **Crossa AAR `@AsyncAfter`** | **283.80 ms** | 5/5 | Winner |
-| 2 | Retrofit + OkHttp | 930.40 ms | 5/5 | min 538 ms, max 1422 ms |
-| 3 | Ktor Client | 938.60 ms | 5/5 | min 539 ms, max 1053 ms |
+| 1 | **Crossa AAR `@AsyncAfter`** | **179.40 ms** | 5/5 | Winner |
+| 2 | Ktor Client | 828.20 ms | 5/5 | |
+| 3 | Retrofit + OkHttp | 1024.20 ms | 5/5 | min 632 ms, max 1174 ms |
 
-**Crossa still wins on Android.** The native AAR was about 3.3× faster than Retrofit and Ktor on this emulator run. These are raw in-app timings from repository call to a parsed result, not a formal benchmark.
+**Crossa still wins on Android.** After the transport-option fix, the native AAR was about 4.6× faster than Ktor and 5.7× faster than Retrofit on this emulator run. These are raw in-app timings from repository call to a parsed result, not a formal benchmark.
 
 ![Android benchmark results showing Crossa as winner](docs/screenshots/android-benchmark-results.png)
