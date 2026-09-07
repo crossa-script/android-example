@@ -11,15 +11,15 @@ The default Crossa artifact is `app/libs/crossa-generated-release.aar`. Debug ge
 ## Verify
 
 ```sh
-./scripts/generate-crossa-aar.sh
+./scripts/generate-build.sh
 ./gradlew verifyDemo
 ./gradlew :app:assembleRelease
 ```
 
-`generate-crossa-aar.sh` runs `crossa generate-build android` and Gradle `assembleRelease`, then copies `library-release.aar`. Optional Debug Crossa artifacts:
+`generate-build.sh` runs `crossa generate-build android` and Gradle `assembleRelease`, then copies `library-release.aar`. Set `CROSSA_CLI` to the CLI built from the Crossa commit being validated. Optional Debug Crossa artifacts:
 
 ```sh
-CROSSA_AAR_VARIANT=debug ./scripts/generate-crossa-aar.sh
+CROSSA_AAR_VARIANT=debug ./scripts/generate-build.sh
 ```
 
 ## Benchmark methodology

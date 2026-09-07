@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,14 +45,18 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.crossa.androiddemo.benchmark.BenchmarkConfiguration
 import com.crossa.androiddemo.benchmark.BenchmarkRunResult
 import com.crossa.androiddemo.benchmark.BenchmarkRunner
 import com.crossa.androiddemo.benchmark.BenchmarkSummary
+import com.crossa.androiddemo.benchmark.BenchmarkMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,19 +64,51 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             MaterialTheme {
-                BenchmarkScreen()
+                BenchmarkScreen(
+                    autoRun = intent.getBooleanExtra("crossa.benchmark.auto", false),
+                    cold = intent.getStringExtra("crossa.benchmark.mode") == "cold"
+                )
             }
         }
     }
 }
 
 @Composable
-private fun BenchmarkScreen() {
-    val configuration = remember { BenchmarkConfiguration() }
+private fun BenchmarkScreen(autoRun: Boolean, cold: Boolean) {
+    val context = LocalContext.current
+    val configuration = remember(cold) {
+        BenchmarkConfiguration(mode = if (cold) BenchmarkMode.Cold else BenchmarkMode.Warm)
+    }
     val scope = rememberCoroutineScope()
     var result by remember { mutableStateOf<BenchmarkRunResult?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+
+    val runBenchmark: () -> Unit = {
+        scope.launch {
+            loading = true
+            error = null
+            result = null
+            println("CROSSA_BENCHMARK_STARTED")
+            runCatching {
+                withContext(Dispatchers.Default) {
+                    BenchmarkRunner(configuration).run()
+                }
+            }.onSuccess {
+                result = it
+                writeBenchmarkResult(context, it)
+                println("CROSSA_BENCHMARK_COMPLETED")
+            }.onFailure {
+                error = it.message ?: it::class.java.simpleName
+                println("CROSSA_BENCHMARK_FAILED ${error}")
+            }
+            loading = false
+        }
+    }
+
+    LaunchedEffect(autoRun) {
+        if (autoRun) runBenchmark()
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -88,20 +125,7 @@ private fun BenchmarkScreen() {
                 Header(
                     loading = loading,
                     configuration = configuration,
-                    onRun = {
-                        scope.launch {
-                            loading = true
-                            error = null
-                            result = null
-                            runCatching {
-                                withContext(Dispatchers.Default) {
-                                    BenchmarkRunner(configuration).run()
-                                }
-                            }.onSuccess { result = it }
-                                .onFailure { error = it.message ?: it::class.java.simpleName }
-                            loading = false
-                        }
-                    }
+                    onRun = runBenchmark
                 )
             }
             error?.let { item { ErrorPanel(it) } }
@@ -117,6 +141,51 @@ private fun BenchmarkScreen() {
             }
         }
     }
+}
+
+private fun writeBenchmarkResult(context: android.content.Context, run: BenchmarkRunResult) {
+    val metadata = run.metadata
+    val json = JSONObject()
+        .put("metadata", JSONObject()
+            .put("deviceModel", metadata.deviceModel)
+            .put("androidVersion", metadata.androidVersion)
+            .put("abi", metadata.abi)
+            .put("appVersion", metadata.appVersion)
+            .put("buildType", metadata.buildType)
+            .put("crossaArtifact", metadata.crossaArtifact)
+            .put("crossaArtifactVersion", metadata.crossaArtifactVersion)
+            .put("crossaArtifactSha256", metadata.crossaArtifactSha256)
+            .put("crossaSourceCommit", metadata.crossaSourceCommit)
+            .put("warmupIterations", metadata.warmupIterations)
+            .put("measuredIterations", metadata.measuredIterations)
+            .put("endpoint", metadata.endpoint)
+            .put("endpointKind", metadata.endpointKind.name)
+            .put("mode", metadata.mode.name)
+            .put("timestampMillis", metadata.timestampMillis))
+        .put("summaries", JSONArray().apply {
+            run.summaries.forEach { summary ->
+                put(JSONObject()
+                    .put("implementation", summary.implementation.name)
+                    .put("sampleCount", summary.sampleCount)
+                    .put("successCount", summary.successCount)
+                    .put("failureCount", summary.failureCount)
+                    .put("medianNanos", summary.medianNanos)
+                    .put("p95Nanos", summary.p95Nanos)
+                    .put("meanNanos", summary.meanNanos))
+            }
+        })
+        .put("samples", JSONArray().apply {
+            run.samples.forEach { sample ->
+                put(JSONObject()
+                    .put("implementation", sample.implementation.name)
+                    .put("iteration", sample.iteration)
+                    .put("durationNanos", sample.durationNanos)
+                    .put("success", sample.success)
+                    .put("itemCount", sample.itemCount)
+                    .put("materializationNanos", sample.materializationNanos))
+            }
+        })
+    java.io.File(context.filesDir, "benchmark-result.json").writeText(json.toString(2))
 }
 
 @Composable
@@ -167,6 +236,8 @@ private fun MetadataPanel(run: BenchmarkRunResult) {
             Text("Android ${metadata.androidVersion}  ABI ${metadata.abi}", fontSize = 12.sp)
             Text("App ${metadata.appVersion}  ${metadata.buildType}", fontSize = 12.sp)
             Text("Crossa ${metadata.crossaArtifact} ${metadata.crossaArtifactVersion}", fontSize = 12.sp)
+            Text("SHA-256 ${metadata.crossaArtifactSha256}", fontSize = 12.sp)
+            Text("Source ${metadata.crossaSourceCommit}", fontSize = 12.sp)
             Text("${metadata.mode}  ${metadata.endpointKind}  ${metadata.endpoint}", fontSize = 12.sp)
             Text("Warmups ${metadata.warmupIterations}  Measured ${metadata.measuredIterations}", fontSize = 12.sp)
         }

@@ -69,6 +69,8 @@ data class BenchmarkMetadata(
     val buildType: String,
     val crossaArtifact: String,
     val crossaArtifactVersion: String,
+    val crossaArtifactSha256: String,
+    val crossaSourceCommit: String,
     val warmupIterations: Int,
     val measuredIterations: Int,
     val endpoint: String,

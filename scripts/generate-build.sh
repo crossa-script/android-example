@@ -26,13 +26,19 @@ case "$variant" in
         ;;
 esac
 
-if [[ -n "${ANDROID_SDK_ROOT:-}" ]]; then
-    android_sdk_directory="$ANDROID_SDK_ROOT"
-elif [[ -n "${ANDROID_HOME:-}" && -d "${ANDROID_HOME}" ]]; then
-    android_sdk_directory="$ANDROID_HOME"
-else
-    android_sdk_directory="$repository_directory/Crossa/build/android-sdk"
-fi
+android_sdk_directory=""
+for candidate in \
+    "${ANDROID_SDK_ROOT:-}" \
+    "${ANDROID_HOME:-}" \
+    "${HOME:-}/Library/Android/sdk" \
+    "${HOME:-}/Library/Android" \
+    "${HOME:-}/Android/Sdk" \
+    "$repository_directory/Crossa/build/android-sdk"; do
+    if [[ -n "$candidate" && -d "$candidate/platform-tools" && -d "$candidate/platforms" ]]; then
+        android_sdk_directory="$candidate"
+        break
+    fi
+done
 
 [[ -x "$crossa_cli" ]] || {
     printf 'Crossa CLI was not found or is not executable: %s\n' "$crossa_cli" >&2

@@ -169,6 +169,8 @@ class BenchmarkRunner(
         buildType = BuildConfig.BENCHMARK_BUILD,
         crossaArtifact = BuildConfig.CROSSA_ARTIFACT,
         crossaArtifactVersion = BuildConfig.CROSSA_ARTIFACT_VERSION,
+        crossaArtifactSha256 = BuildConfig.CROSSA_ARTIFACT_SHA256,
+        crossaSourceCommit = BuildConfig.CROSSA_SOURCE_COMMIT,
         warmupIterations = configuration.warmupIterations,
         measuredIterations = configuration.measuredIterations,
         endpoint = configuration.endpoint,
