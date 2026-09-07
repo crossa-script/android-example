@@ -16,7 +16,7 @@ The default Crossa artifact is `app/libs/crossa-generated-release.aar`. Debug ge
 ./gradlew :app:assembleRelease
 ```
 
-`generate-build.sh` runs `crossa generate-build android` and Gradle `assembleRelease`, then copies `library-release.aar`. Set `CROSSA_CLI` to the CLI built from the Crossa commit being validated. Optional Debug Crossa artifacts:
+`generate-build.sh` runs `crossa generate-build android` and Gradle `assembleRelease`, then copies `library-release.aar`. Set `CROSSA_CLI` to the CLI built from the Crossa commit being validated; the script records CLI path, CLI SHA-256, Crossa source commit, runtime ABI, and AAR SHA-256 in `app/libs/crossa-generated-release.manifest.json`. Optional Debug Crossa artifacts:
 
 ```sh
 CROSSA_AAR_VARIANT=debug ./scripts/generate-build.sh
@@ -35,3 +35,6 @@ The in-app harness is an observation tool, not a product performance claim.
 - Remote JSONPlaceholder latency includes the network and is not SDK-only overhead.
 
 Use a physical ARM64 device and the app Release build before treating numbers as production evidence.
+
+The checked-in AAR is a generated consumer artifact, not a universal SDK. The
+current CLI and source commit must agree with its manifest before release.

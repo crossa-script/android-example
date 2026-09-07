@@ -7,7 +7,13 @@ repository_directory="$(cd -- "$android_project_directory/.." && pwd)"
 source_directory="$android_project_directory/crossa"
 generated_directory="${CROSSA_AAR_BUILD_DIR:-$android_project_directory/build/generated-crossa-aar}"
 variant="${CROSSA_AAR_VARIANT:-release}"
-crossa_cli="${CROSSA_CLI:-$repository_directory/Crossa/build-host/crossa}"
+if [[ -n "${CROSSA_CLI:-}" ]]; then
+    crossa_cli="$CROSSA_CLI"
+elif [[ -x "$repository_directory/Crossa/build/crossa" ]]; then
+    crossa_cli="$repository_directory/Crossa/build/crossa"
+else
+    crossa_cli="$repository_directory/Crossa/build-host/crossa"
+fi
 
 case "$variant" in
     debug)
@@ -45,6 +51,17 @@ done
     exit 1
 }
 
+crossa_source_commit="unknown"
+if git -C "$repository_directory/Crossa" rev-parse HEAD >/dev/null 2>&1; then
+    crossa_source_commit="$(git -C "$repository_directory/Crossa" rev-parse HEAD)"
+fi
+crossa_cli_sha256="unknown"
+if command -v shasum >/dev/null 2>&1; then
+    crossa_cli_sha256="$(shasum -a 256 "$crossa_cli" | awk '{print $1}')"
+fi
+printf 'Crossa CLI:\n  path: %s\n  version: %s\n  source commit: %s\n  sha256: %s\n' \
+    "$crossa_cli" "$($crossa_cli --version)" "$crossa_source_commit" "$crossa_cli_sha256"
+
 [[ -d "$android_sdk_directory" ]] || {
     printf 'Android SDK was not found: %s\n' "$android_sdk_directory" >&2
     exit 1
@@ -76,6 +93,23 @@ if ! unzip -l "$generated_aar" | grep -q 'jni/arm64-v8a/libcrossa_runtime.so'; t
 fi
 
 cp "$generated_aar" "$aar_destination"
+aar_sha256="$(shasum -a 256 "$aar_destination" | awk '{print $1}')"
+configuration="Release"
+if [[ "$variant" == "debug" ]]; then
+    configuration="Debug"
+fi
+cat > "$android_project_directory/app/libs/crossa-generated-${variant}.manifest.json" <<EOF
+{
+  "crossaVersion": "$($crossa_cli --version)",
+  "sourceCommit": "$crossa_source_commit",
+  "cliPath": "$crossa_cli",
+  "cliSha256": "$crossa_cli_sha256",
+  "runtimeAbi": 1,
+  "target": "android",
+  "configuration": "$configuration",
+  "artifactSha256": "$aar_sha256"
+}
+EOF
 printf 'Prepared Android %s AAR: %s\n' "$variant" "$aar_destination"
 printf 'AAR size: %s bytes\n' "$(stat -f '%z' "$aar_destination")"
 printf 'AAR source: %s\n' "$generated_aar"
