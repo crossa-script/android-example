@@ -7,7 +7,7 @@ plugins {
 tasks.register<Exec>("generateCrossaAar") {
     val sourceDirectory = layout.projectDirectory.dir("crossa")
     val aarFile = layout.projectDirectory.file("app/libs/crossa-generated-release.aar")
-    val script = layout.projectDirectory.file("scripts/generate-crossa-aar.sh")
+    val script = layout.projectDirectory.file("scripts/generate-build.sh")
     inputs.dir(sourceDirectory)
     inputs.file(script)
     outputs.file(aarFile)

@@ -1,3 +1,5 @@
 -keep,allowoptimization class com.crossa.androiddemo.** { *; }
+-keep class com.crossa.generated.internal.CrossaNativeCallback { *; }
+-keep class com.crossa.generated.internal.CrossaArgument$* { *; }
 -dontwarn org.slf4j.**
 -dontwarn java.lang.invoke.StringConcatFactory

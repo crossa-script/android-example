@@ -46,7 +46,7 @@ class BenchmarkRunner(
     private suspend fun measure(clients: List<PostsBenchmarkClient>): List<BenchmarkSample> {
         val samples = mutableListOf<BenchmarkSample>()
         repeat(configuration.measuredIterations) { iteration ->
-            rotatingOrder(clients, iteration).forEach { client ->
+            rotatingClientOrder(clients, iteration).forEach { client ->
                 samples += sample(client, iteration)
             }
         }
@@ -57,7 +57,7 @@ class BenchmarkRunner(
         template.forEach { it.close() }
         val samples = mutableListOf<BenchmarkSample>()
         repeat(configuration.measuredIterations) { iteration ->
-            rotatingOrder(
+            rotatingImplementationOrder(
                 listOf(
                     BenchmarkImplementation.Crossa,
                     BenchmarkImplementation.Retrofit,
@@ -114,7 +114,7 @@ class BenchmarkRunner(
         }
     }
 
-    private fun rotatingOrder(
+    private fun rotatingClientOrder(
         clients: List<PostsBenchmarkClient>,
         iteration: Int
     ): List<PostsBenchmarkClient> {
@@ -123,7 +123,7 @@ class BenchmarkRunner(
         return clients.drop(offset) + clients.take(offset)
     }
 
-    private fun rotatingOrder(
+    private fun rotatingImplementationOrder(
         implementations: List<BenchmarkImplementation>,
         iteration: Int
     ): List<BenchmarkImplementation> {
