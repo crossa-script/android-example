@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,7 +63,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary = Color(0xFFA997FF),
+                    onPrimary = Color(0xFF171328),
+                    primaryContainer = Color(0xFF272044),
+                    onPrimaryContainer = Color(0xFFEAE5FF),
+                    secondaryContainer = Color(0xFF1A293E),
+                    onSecondaryContainer = Color(0xFFC7DFFF),
+                    background = Color(0xFF08090D),
+                    surface = Color(0xFF111722),
+                    surfaceVariant = Color(0xFF1A2230),
+                    onSurface = Color(0xFFF5F7FC),
+                    onSurfaceVariant = Color(0xFFA4ADBD)
+                )
+            ) {
                 BenchmarkScreen(
                     autoRun = intent.getBooleanExtra("crossa.benchmark.auto", false),
                     cold = intent.getStringExtra("crossa.benchmark.mode") == "cold"
@@ -130,12 +144,12 @@ private fun BenchmarkScreen(autoRun: Boolean, cold: Boolean) {
             }
             error?.let { item { ErrorPanel(it) } }
             if (loading) {
-                item { LoadingPanel(configuration) }
+                item { LoadingPanel() }
             } else {
                 result?.let { run ->
-                    item { MetadataPanel(run) }
-                    items(run.summaries, key = { it.implementation.name }) { summary ->
-                        SummaryCard(summary, run)
+                    val ordered = run.summaries.sortedWith(compareBy({ if (it.successCount == 0) 1 else 0 }, { it.medianNanos }))
+                    items(ordered, key = { it.implementation.name }) { summary ->
+                        SummaryCard(summary, ordered.indexOf(summary), ordered)
                     }
                 }
             }
@@ -152,10 +166,6 @@ private fun writeBenchmarkResult(context: android.content.Context, run: Benchmar
             .put("abi", metadata.abi)
             .put("appVersion", metadata.appVersion)
             .put("buildType", metadata.buildType)
-            .put("crossaArtifact", metadata.crossaArtifact)
-            .put("crossaArtifactVersion", metadata.crossaArtifactVersion)
-            .put("crossaArtifactSha256", metadata.crossaArtifactSha256)
-            .put("crossaSourceCommit", metadata.crossaSourceCommit)
             .put("warmupIterations", metadata.warmupIterations)
             .put("measuredIterations", metadata.measuredIterations)
             .put("endpoint", metadata.endpoint)
@@ -195,32 +205,25 @@ private fun Header(
     configuration: BenchmarkConfiguration,
     onRun: () -> Unit
 ) {
-    Column(
+        Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+            .padding(22.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Crossa Network Benchmark", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(configuration.endpoint, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Benchmark scores", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Text("Crossa · Retrofit · Ktor", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(12.dp))
             Button(enabled = !loading, onClick = onRun) {
                 Text(if (loading) "Running" else "Run")
             }
         }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetricChip("Mode", configuration.mode.name)
-            MetricChip("Warmups", configuration.warmupIterations.toString())
-            MetricChip("Measured", configuration.measuredIterations.toString())
-            MetricChip("Artifact", BuildConfig.CROSSA_ARTIFACT)
-            MetricChip("Build", BuildConfig.BENCHMARK_BUILD)
-        }
         Text(
-            "Observations only. Remote JSONPlaceholder latency is not SDK overhead. No winner is declared from one average.",
+            "Lower p50 is faster. Scores use the same measured request for every library.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp
         )
@@ -228,50 +231,32 @@ private fun Header(
 }
 
 @Composable
-private fun MetadataPanel(run: BenchmarkRunResult) {
-    val metadata = run.metadata
-    Card(shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Reproducibility", fontWeight = FontWeight.Bold)
-            Text("Device ${metadata.deviceModel}", fontSize = 12.sp)
-            Text("Android ${metadata.androidVersion}  ABI ${metadata.abi}", fontSize = 12.sp)
-            Text("App ${metadata.appVersion}  ${metadata.buildType}", fontSize = 12.sp)
-            Text("Crossa ${metadata.crossaArtifact} ${metadata.crossaArtifactVersion}", fontSize = 12.sp)
-            Text("SHA-256 ${metadata.crossaArtifactSha256}", fontSize = 12.sp)
-            Text("Source ${metadata.crossaSourceCommit}", fontSize = 12.sp)
-            Text("${metadata.mode}  ${metadata.endpointKind}  ${metadata.endpoint}", fontSize = 12.sp)
-            Text("Warmups ${metadata.warmupIterations}  Measured ${metadata.measuredIterations}", fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
-private fun SummaryCard(summary: BenchmarkSummary, run: BenchmarkRunResult) {
+private fun SummaryCard(summary: BenchmarkSummary, rank: Int, ordered: List<BenchmarkSummary>) {
+    val fastest = ordered.firstOrNull { it.successCount > 0 }
+    val delta = if (rank > 0 && fastest != null && fastest.medianNanos > 0L) {
+        ((summary.medianNanos.toDouble() / fastest.medianNanos) - 1.0) * 100.0
+    } else null
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = if (rank == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(summary.implementation.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("${rank + 1}", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(summary.implementation.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("${summary.successCount}/${summary.sampleCount} successful", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (rank == 0) Text("FASTEST p50", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 MetricChip("p50", summary.medianNanos.toMs())
                 MetricChip("p95", summary.p95Nanos.toMs())
                 MetricChip("mean", summary.meanNanos.toMs())
-                MetricChip("min", summary.minNanos.toMs())
-                MetricChip("max", summary.maxNanos.toMs())
-                MetricChip("success", "${summary.successCount}/${summary.sampleCount}")
             }
-            if (summary.implementation.name == "Crossa") {
-                run.crossaSplit?.let { split ->
-                    CodeBlock(
-                        "Crossa split",
-                        "native-ready p50 ${split.nativeReady.medianNanos.toMs()}\n" +
-                            "materialization p50 ${split.materialization?.medianNanos?.toMs() ?: "n/a"}\n" +
-                            "application-ready p50 ${split.applicationReady.medianNanos.toMs()}"
-                    )
-                }
-            }
+            delta?.let { Text("+${String.format(Locale.US, "%.1f", it)}% p50 vs fastest", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
@@ -288,34 +273,14 @@ private fun MetricChip(label: String, value: String) {
 }
 
 @Composable
-private fun CodeBlock(title: String, value: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(
-            value,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
-                .padding(10.dp),
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace
-        )
-    }
-}
-
-@Composable
-private fun LoadingPanel(configuration: BenchmarkConfiguration) {
+private fun LoadingPanel() {
     Column(
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
             .padding(16.dp)
     ) {
-        Text("Running interleaved ${configuration.mode.name.lowercase()} rounds", fontWeight = FontWeight.Bold)
-        Text(
-            "Warmups ${configuration.warmupIterations} are excluded. Measured rounds ${configuration.measuredIterations}.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text("Measuring library scores…", fontWeight = FontWeight.Bold)
     }
 }
 
