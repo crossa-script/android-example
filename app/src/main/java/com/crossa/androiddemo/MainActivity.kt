@@ -185,7 +185,8 @@ private fun writeBenchmarkResult(context: android.content.Context, run: Benchmar
                     .put("materializationNanos", sample.materializationNanos))
             }
         })
-    java.io.File(context.filesDir, "benchmark-result.json").writeText(json.toString(2))
+        val resultDirectory = context.getExternalFilesDir(null) ?: context.filesDir
+        java.io.File(resultDirectory, "benchmark-result.json").writeText(json.toString(2))
 }
 
 @Composable

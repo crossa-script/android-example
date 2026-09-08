@@ -1,0 +1,226 @@
+{
+  "metadata": {
+    "deviceModel": "Google sdk_gphone16k_arm64",
+    "androidVersion": "17",
+    "abi": "arm64-v8a",
+    "appVersion": "1.0",
+    "buildType": "release",
+    "crossaArtifact": "release",
+    "crossaArtifactVersion": "0.1.0",
+    "crossaArtifactSha256": "17bb9525e641d8b597caf456613f7ec679032cb07b29a027176398056f0fdc15",
+    "crossaSourceCommit": "8c362e10fba65cbc2279f08c06eb5469e16a72e5",
+    "warmupIterations": 2,
+    "measuredIterations": 8,
+    "endpoint": "https:\/\/jsonplaceholder.typicode.com\/posts",
+    "endpointKind": "Remote",
+    "mode": "Cold",
+    "timestampMillis": 1788862431045
+  },
+  "summaries": [
+    {
+      "implementation": "Crossa",
+      "sampleCount": 8,
+      "successCount": 8,
+      "failureCount": 0,
+      "medianNanos": 532882501,
+      "p95Nanos": 534224792,
+      "meanNanos": 5.62419177375E8
+    },
+    {
+      "implementation": "Retrofit",
+      "sampleCount": 8,
+      "successCount": 8,
+      "failureCount": 0,
+      "medianNanos": 530226208,
+      "p95Nanos": 531063417,
+      "meanNanos": 530446115
+    },
+    {
+      "implementation": "Ktor",
+      "sampleCount": 8,
+      "successCount": 8,
+      "failureCount": 0,
+      "medianNanos": 529147501,
+      "p95Nanos": 532011250,
+      "meanNanos": 5.2967756275E8
+    }
+  ],
+  "samples": [
+    {
+      "implementation": "Crossa",
+      "iteration": 0,
+      "durationNanos": 774597792,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 579875
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 0,
+      "durationNanos": 532935709,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 0,
+      "durationNanos": 532349375,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 1,
+      "durationNanos": 530291625,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 1,
+      "durationNanos": 529359458,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Crossa",
+      "iteration": 1,
+      "durationNanos": 532882501,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 568625
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 2,
+      "durationNanos": 526462042,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Crossa",
+      "iteration": 2,
+      "durationNanos": 528001625,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 410208
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 2,
+      "durationNanos": 528828376,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Crossa",
+      "iteration": 3,
+      "durationNanos": 534224792,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 564667
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 3,
+      "durationNanos": 530226208,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 3,
+      "durationNanos": 529147501,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 4,
+      "durationNanos": 531063417,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 4,
+      "durationNanos": 528135917,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Crossa",
+      "iteration": 4,
+      "durationNanos": 530895125,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 428542
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 5,
+      "durationNanos": 532011250,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Crossa",
+      "iteration": 5,
+      "durationNanos": 531880542,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 711917
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 5,
+      "durationNanos": 529816667,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Crossa",
+      "iteration": 6,
+      "durationNanos": 533027125,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 383333
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 6,
+      "durationNanos": 529773292,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 6,
+      "durationNanos": 528925501,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Retrofit",
+      "iteration": 7,
+      "durationNanos": 530633626,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Ktor",
+      "iteration": 7,
+      "durationNanos": 531029458,
+      "success": true,
+      "itemCount": 100
+    },
+    {
+      "implementation": "Crossa",
+      "iteration": 7,
+      "durationNanos": 533843917,
+      "success": true,
+      "itemCount": 100,
+      "materializationNanos": 450500
+    }
+  ]
+}

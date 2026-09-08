@@ -16,8 +16,8 @@ android {
         versionName = "1.0"
         buildConfigField("String", "CROSSA_ARTIFACT", "\"release\"")
         buildConfigField("String", "CROSSA_ARTIFACT_VERSION", "\"0.1.0\"")
-        buildConfigField("String", "CROSSA_ARTIFACT_SHA256", "\"19862eef1696a227ef8f0fd39cfaf9544b6b9d4fc5c971bfea2731cd37325844\"")
-        buildConfigField("String", "CROSSA_SOURCE_COMMIT", "\"ec92ea103e053613988a9fc5d34404cd7c34b177\"")
+        buildConfigField("String", "CROSSA_ARTIFACT_SHA256", "\"17bb9525e641d8b597caf456613f7ec679032cb07b29a027176398056f0fdc15\"")
+        buildConfigField("String", "CROSSA_SOURCE_COMMIT", "\"8c362e10fba65cbc2279f08c06eb5469e16a72e5\"")
     }
 
     buildTypes {
