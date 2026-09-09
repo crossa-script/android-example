@@ -2,9 +2,9 @@
   "crossaVersion": "0.1.0",
   "sourceCommit": "8c362e10fba65cbc2279f08c06eb5469e16a72e5",
   "cliPath": "/Users/yazantarifi/Crossa/Crossa/build/crossa",
-  "cliSha256": "c7fe7322841af8c28482d191976719b5d8d8f0f8db061689b9f86633360f1115",
+  "cliSha256": "6dbd4978a41ec2ba1b11370ab6d97f7995f494d71e1b515fd656af5479e042b1",
   "runtimeAbi": 1,
   "target": "android",
   "configuration": "Release",
-  "artifactSha256": "17bb9525e641d8b597caf456613f7ec679032cb07b29a027176398056f0fdc15"
+  "artifactSha256": "297b6e05f5dd5cba091a7a2b7c3d14510064ba474d9a5bc18c74027642cf716c"
 }

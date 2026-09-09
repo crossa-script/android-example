@@ -20,3 +20,9 @@ tasks.register("verifyDemo") {
     dependsOn("generateCrossaAar")
     finalizedBy(":app:assembleDebug")
 }
+
+project(":app") {
+    tasks.configureEach {
+        dependsOn(rootProject.tasks.named("generateCrossaAar"))
+    }
+}

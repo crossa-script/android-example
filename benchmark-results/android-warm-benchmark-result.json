@@ -5,16 +5,14 @@
     "abi": "arm64-v8a",
     "appVersion": "1.0",
     "buildType": "release",
-    "crossaArtifact": "release",
-    "crossaArtifactVersion": "0.1.0",
-    "crossaArtifactSha256": "17bb9525e641d8b597caf456613f7ec679032cb07b29a027176398056f0fdc15",
+    "crossaArtifactSha256": "297b6e05f5dd5cba091a7a2b7c3d14510064ba474d9a5bc18c74027642cf716c",
     "crossaSourceCommit": "8c362e10fba65cbc2279f08c06eb5469e16a72e5",
     "warmupIterations": 2,
     "measuredIterations": 8,
     "endpoint": "https:\/\/jsonplaceholder.typicode.com\/posts",
     "endpointKind": "Remote",
     "mode": "Warm",
-    "timestampMillis": 1788862360723
+    "timestampMillis": 1788982407188
   },
   "summaries": [
     {
@@ -22,205 +20,205 @@
       "sampleCount": 8,
       "successCount": 8,
       "failureCount": 0,
-      "medianNanos": 15800625,
-      "p95Nanos": 16105292,
-      "meanNanos": 2.612860425E7
+      "medianNanos": 15591208,
+      "p95Nanos": 16428125,
+      "meanNanos": 1.53977865E7
     },
     {
       "implementation": "Retrofit",
       "sampleCount": 8,
       "successCount": 8,
       "failureCount": 0,
-      "medianNanos": 13580959,
-      "p95Nanos": 14446167,
-      "meanNanos": 1.381882825E7
+      "medianNanos": 14876166,
+      "p95Nanos": 16074750,
+      "meanNanos": 14970573
     },
     {
       "implementation": "Ktor",
       "sampleCount": 8,
       "successCount": 8,
       "failureCount": 0,
-      "medianNanos": 15834333,
-      "p95Nanos": 16208708,
-      "meanNanos": 1.592099475E7
+      "medianNanos": 18768750,
+      "p95Nanos": 19552542,
+      "meanNanos": 2.873274475E7
     }
   ],
   "samples": [
     {
       "implementation": "Crossa",
       "iteration": 0,
-      "durationNanos": 16105292,
+      "durationNanos": 15591208,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 417708
+      "materializationNanos": 736375
     },
     {
       "implementation": "Retrofit",
       "iteration": 0,
-      "durationNanos": 13538209,
+      "durationNanos": 14876166,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Ktor",
       "iteration": 0,
-      "durationNanos": 16075667,
+      "durationNanos": 19488458,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Retrofit",
       "iteration": 1,
-      "durationNanos": 14430500,
+      "durationNanos": 16295709,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Ktor",
       "iteration": 1,
-      "durationNanos": 15668000,
+      "durationNanos": 17537292,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Crossa",
       "iteration": 1,
-      "durationNanos": 15617042,
+      "durationNanos": 15837917,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 427416
+      "materializationNanos": 542666
     },
     {
       "implementation": "Ktor",
       "iteration": 2,
-      "durationNanos": 16005000,
+      "durationNanos": 18286750,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Crossa",
       "iteration": 2,
-      "durationNanos": 15885500,
+      "durationNanos": 16552208,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 416042
+      "materializationNanos": 470625
     },
     {
       "implementation": "Retrofit",
       "iteration": 2,
-      "durationNanos": 13580959,
+      "durationNanos": 15062667,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Crossa",
       "iteration": 3,
-      "durationNanos": 15816292,
+      "durationNanos": 14477959,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 463292
+      "materializationNanos": 531667
     },
     {
       "implementation": "Retrofit",
       "iteration": 3,
-      "durationNanos": 13782125,
+      "durationNanos": 16074750,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Ktor",
       "iteration": 3,
-      "durationNanos": 15648000,
+      "durationNanos": 18768750,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Retrofit",
       "iteration": 4,
-      "durationNanos": 14740291,
+      "durationNanos": 14738084,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Ktor",
       "iteration": 4,
-      "durationNanos": 16446875,
+      "durationNanos": 19552542,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Crossa",
       "iteration": 4,
-      "durationNanos": 14428000,
+      "durationNanos": 16428125,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 440708
+      "materializationNanos": 481125
     },
     {
       "implementation": "Ktor",
       "iteration": 5,
-      "durationNanos": 16208708,
+      "durationNanos": 17484083,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Crossa",
       "iteration": 5,
-      "durationNanos": 99804042,
+      "durationNanos": 15813250,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 413958
+      "materializationNanos": 591875
     },
     {
       "implementation": "Retrofit",
       "iteration": 5,
-      "durationNanos": 13110375,
+      "durationNanos": 14006916,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Crossa",
       "iteration": 6,
-      "durationNanos": 15800625,
+      "durationNanos": 13313625,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 448791
+      "materializationNanos": 483208
     },
     {
       "implementation": "Retrofit",
       "iteration": 6,
-      "durationNanos": 14446167,
+      "durationNanos": 13828042,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Ktor",
       "iteration": 6,
-      "durationNanos": 15481375,
+      "durationNanos": 99968416,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Retrofit",
       "iteration": 7,
-      "durationNanos": 12922000,
+      "durationNanos": 14882250,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Ktor",
       "iteration": 7,
-      "durationNanos": 15834333,
+      "durationNanos": 18775667,
       "success": true,
       "itemCount": 100
     },
     {
       "implementation": "Crossa",
       "iteration": 7,
-      "durationNanos": 15572041,
+      "durationNanos": 15168000,
       "success": true,
       "itemCount": 100,
-      "materializationNanos": 346208
+      "materializationNanos": 551166
     }
   ]
 }
